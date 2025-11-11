@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  app:
+    image: python:3.11-slim
+    container_name: obsidian-remote-cli
+    working_dir: /app
+    volumes:
+      - ./app.py:/app/app.py
+      - /root/Obsidian/Claude-code-ios:/vault:ro
+      - /root/ClaudeCode-Workspace:/workspace
+    environment:
+      - FLASK_APP=app.py
+      - PYTHONUNBUFFERED=1
+    command: >
+      sh -c "pip install flask && python app.py"
+    networks:
+      - loop9Net
+    deploy:
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.obsidian-cli.rule=Host(`obsidian-cli.loop9.com.br`)"
+        - "traefik.http.routers.obsidian-cli.entrypoints=websecure"
+        - "traefik.http.routers.obsidian-cli.tls.certresolver=letsencrypt"
+        - "traefik.http.services.obsidian-cli.loadbalancer.server.port=8080"
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+
+networks:
+  loop9Net:
+    external: true
