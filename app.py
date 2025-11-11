@@ -11,9 +11,9 @@ from datetime import datetime
 
 app = Flask(__name__)
 
-# Paths (será configurado quando Syncthing estiver ativo)
-OBSIDIAN_VAULT = "/vault"  # Placeholder
-CLAUDE_CODE_WORKSPACE = "/workspace"  # Placeholder
+# Paths
+OBSIDIAN_VAULT = "/vault"  # Syncthing mounted folder
+CLAUDE_CODE_WORKSPACE = "/root/ClaudeCode-Workspace"  # VPS workspace
 
 def log_request(action, status, message=""):
     """Log de requisições"""
@@ -42,18 +42,23 @@ def organize_notes():
     try:
         log_request("organize-notes", "INICIADO")
 
-        # TODO: Implementar verificação quando Syncthing estiver configurado
-        # Por enquanto, retorna status de configuração pendente
-        log_request("organize-notes", "CONFIGURAÇÃO PENDENTE")
-        return jsonify({
-            "status": "pending",
-            "message": "⚠️  Syncthing não configurado ainda. Funcionalidade disponível em breve.",
-            "next_steps": [
-                "1. Configurar Syncthing na VPS",
-                "2. Sincronizar pasta Obsidian",
-                "3. Atualizar paths no docker-compose.yml"
-            ]
-        }), 503
+        # Verifica notas soltas
+        vault_root = OBSIDIAN_VAULT
+        loose_notes = []
+
+        for file in os.listdir(vault_root):
+            if file.endswith('.md') and file not in ['START HERE.md']:
+                # Ignora arquivos dashboard e pastas
+                if not file.startswith('📊') and not file.startswith('📝') and not file.startswith('📺'):
+                    loose_notes.append(file)
+
+        if not loose_notes:
+            log_request("organize-notes", "CONCLUÍDO", "Nenhuma nota solta encontrada")
+            return jsonify({
+                "status": "success",
+                "message": "Nenhuma nota solta para organizar",
+                "notes_organized": 0
+            })
 
         # Executa Claude Code para organizar
         cmd = [
